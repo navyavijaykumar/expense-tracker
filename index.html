@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Navya's Expense Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@500;600;700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<script src="https://accounts.google.com/gsi/client" async defer></script>
+<style>
+  :root{
+    --ink:#211826;
+    --ink-soft:#3A2C40;
+    --paper:#F6F4F0;
+    --paper-card:#FFFFFF;
+    --line:#E2DED6;
+    --text-dark:#2A2530;
+    --text-muted:#8B8390;
+    --gold:#D4A24C;
+
+    --c-trip:#3FA796;
+    --c-clothes:#D65B7A;
+    --c-pub:#B5651D;
+    --c-cafe:#A67C52;
+    --c-dessert:#E8A33D;
+    --c-play:#5C8B5C;
+    --c-invest:#6B4C93;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:'IBM Plex Sans', sans-serif;
+    background:var(--paper);
+    color:var(--text-dark);
+    padding:26px 22px 46px;
+  }
+  .wrap{max-width:1240px;margin:0 auto;}
+
+  /* ---- Header ---- */
+  .header{
+    background:var(--ink);
+    border-radius:20px;
+    padding:28px 32px;
+    color:#F2ECE6;
+    margin-bottom:20px;
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-end;
+    flex-wrap:wrap;
+    gap:18px;
+    position:relative;
+    overflow:hidden;
+  }
+  .header::before{
+    content:"";
+    position:absolute; inset:0;
+    background:
+      repeating-linear-gradient(115deg, rgba(212,162,76,0.06) 0 2px, transparent 2px 26px);
+    pointer-events:none;
+  }
+  .header h1{
+    font-family:'Bricolage Grotesque', sans-serif;
+    font-weight:800;
+    font-size:26px;
+    margin:0 0 6px;
+    letter-spacing:0.2px;
+  }
+  .header p{ margin:0; color:#C9BFCB; font-size:13px; }
+  .header-stats{ display:flex; gap:26px; z-index:1; flex-wrap:wrap; }
+  .header-stat{ text-align:right; }
+  .header-stat .hs-label{ font-size:10.5px; text-transform:uppercase; letter-spacing:0.6px; color:#B9AEC2; font-weight:600; }
+  .header-stat .hs-value{ font-family:'IBM Plex Mono', monospace; font-size:21px; font-weight:600; color:var(--gold); }
+
+  .section-label{ display:flex; align-items:center; gap:10px; margin:28px 0 14px; }
+  .section-label:first-of-type{ margin-top:0; }
+  .section-label .line{ flex:1; height:1px; background:var(--line); }
+  .section-label span{ font-family:'Bricolage Grotesque', sans-serif; font-weight:700; font-size:14.5px; color:var(--ink); text-transform:uppercase; letter-spacing:0.5px; }
+
+  .panel{
+    background:var(--paper-card);
+    border-radius:18px;
+    border:1px solid var(--line);
+    padding:22px 24px 20px;
+    margin-bottom:18px;
+  }
+  .panel-title{ font-family:'Bricolage Grotesque', sans-serif; font-size:16.5px; font-weight:700; color:var(--ink); margin:0 0 4px; }
+  .panel-sub{ font-size:12px; color:var(--text-muted); margin:0 0 14px; }
+
+  /* ---- Add entry form ---- */
+  .add-grid{
+    display:grid;
+    grid-template-columns:1.1fr 1.3fr 1fr 1.6fr 1.4fr auto;
+    gap:12px;
+    align-items:end;
+  }
+  .field label{
+    display:block; font-size:10px; font-weight:700; text-transform:uppercase;
+    letter-spacing:0.4px; color:var(--text-muted); margin-bottom:6px;
+  }
+  .field input, .field select{
+    width:100%; padding:9px 10px; border:1px solid var(--line); border-radius:10px;
+    background:var(--paper); font-family:'IBM Plex Sans', sans-serif; font-size:13px;
+    color:var(--text-dark); outline:none;
+  }
+  .field input:focus, .field select:focus{ border-color:var(--gold); box-shadow:0 0 0 3px rgba(212,162,76,0.18); }
+  .field input:disabled{ background:#F0EEEA; color:var(--text-muted); }
+  .btn{
+    background:var(--ink); color:#F2ECE6; border:none; font-family:'IBM Plex Sans', sans-serif;
+    font-weight:600; font-size:13px; padding:10px 18px; border-radius:10px; cursor:pointer;
+    white-space:nowrap;
+  }
+  .btn:hover{ background:var(--ink-soft); }
+  .btn.ghost{ background:transparent; color:var(--ink); border:1px solid var(--line); }
+  .btn.ghost:hover{ background:var(--paper); }
+  .btn.small{ padding:6px 10px; font-size:11px; }
+  .form-msg{ font-size:11.5px; color:#B33; margin-top:8px; min-height:14px; }
+  .toolbar-row{ display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+  .sync-dot{ width:9px; height:9px; border-radius:50%; background:#C4BEC8; display:inline-block; }
+  .sync-dot.connected{ background:#4C9A6A; }
+  .sync-dot.error{ background:#C24F63; }
+
+  /* ---- Stats ---- */
+  .stats{ display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px; }
+  .stat-card{
+    background:var(--paper-card); border:1px solid var(--line); border-radius:14px;
+    padding:15px 17px;
+  }
+  .stat-label{ font-size:10.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px; }
+  .stat-value{ font-family:'IBM Plex Mono', monospace; font-size:19px; font-weight:600; color:var(--ink); }
+  .stat-sub{ font-size:10.5px; color:var(--text-muted); margin-top:2px; }
+
+  /* ---- Highlights ---- */
+  .highlight-row{
+    display:grid; grid-template-columns:34px 150px 1fr 90px 60px;
+    align-items:center; gap:12px; padding:9px 0; border-bottom:1px solid var(--line);
+  }
+  .highlight-row:last-child{ border-bottom:none; }
+  .highlight-rank{
+    width:26px; height:26px; border-radius:50%; background:var(--paper);
+    border:1px solid var(--line); display:flex; align-items:center; justify-content:center;
+    font-family:'IBM Plex Mono', monospace; font-size:11.5px; font-weight:700; color:var(--ink);
+  }
+  .highlight-rank.top{ background:var(--gold); border-color:var(--gold); color:var(--ink); }
+  .highlight-name{ display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; }
+  .highlight-amt{ font-family:'IBM Plex Mono', monospace; font-size:12.5px; font-weight:600; text-align:right; color:var(--ink); }
+  .highlight-pct{ font-family:'IBM Plex Mono', monospace; font-size:11px; text-align:right; color:var(--text-muted); }
+
+  /* ---- Category totals ---- */
+  .main-grid{ display:grid; grid-template-columns:1.5fr 1fr; gap:18px; margin-bottom:0; }
+  .cat-bars{ display:flex; flex-direction:column; gap:10px; margin-top:4px; }
+  .cat-bar-row{ display:grid; grid-template-columns:150px 1fr 90px 110px; align-items:center; gap:12px; }
+  .cat-bar-name{ display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; }
+  .cat-dot{ width:10px; height:10px; border-radius:3px; flex-shrink:0; }
+  .cat-bar-track{ background:#F0EEEA; border-radius:8px; height:12px; overflow:hidden; }
+  .cat-bar-fill{ height:100%; border-radius:8px; transition:width 0.3s ease; }
+  .cat-bar-amt{ font-family:'IBM Plex Mono', monospace; font-size:12.5px; font-weight:600; text-align:right; color:var(--ink); }
+  .cat-bar-proj{ font-family:'IBM Plex Mono', monospace; font-size:11px; font-weight:500; text-align:right; color:var(--text-muted); }
+
+  /* ---- Donut chart ---- */
+  .donut-wrap{ display:flex; justify-content:center; padding:6px 0 4px; }
+  .donut{ width:168px; height:168px; border-radius:50%; position:relative; }
+  .donut::after{
+    content:""; position:absolute; inset:19%; background:var(--paper-card);
+    border-radius:50%; box-shadow: inset 0 0 0 1px rgba(33,24,38,0.06);
+  }
+  .donut-center{
+    position:absolute; inset:19%; display:flex; flex-direction:column;
+    align-items:center; justify-content:center; z-index:1;
+  }
+  .donut-center .dc-label{ font-size:9.5px; color:var(--text-muted); font-weight:700; text-transform:uppercase; letter-spacing:0.3px; }
+  .donut-center .dc-value{ font-family:'IBM Plex Mono', monospace; font-size:15px; color:var(--ink); font-weight:600; }
+  .legend-list{ display:flex; flex-direction:column; gap:9px; margin-top:16px; }
+  .legend-item{ display:flex; align-items:center; justify-content:space-between; font-size:12px; }
+  .legend-left{ display:flex; align-items:center; gap:9px; }
+  .legend-amt{ font-family:'IBM Plex Mono', monospace; font-weight:600; color:var(--ink); }
+
+  /* ---- Investment breakdown ---- */
+  .invest-table{ width:100%; border-collapse:collapse; margin-top:6px;}
+  .invest-table th{ text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:0.4px; color:var(--text-muted); padding:6px 8px; border-bottom:2px solid var(--line); }
+  .invest-table td{ padding:9px 8px; font-size:12.5px; border-bottom:1px solid var(--line); }
+  .invest-table td.amt, .invest-table th.amt{ text-align:right; font-family:'IBM Plex Mono', monospace; }
+  .invest-table tfoot td{ font-weight:700; color:var(--ink); border-top:2px solid var(--line); border-bottom:none; }
+
+  /* ---- Trend chart ---- */
+  .trend-legend{ display:flex; gap:18px; margin-bottom:14px; font-size:11.5px; color:var(--text-muted); }
+  .trend-legend span{ display:inline-flex; align-items:center; gap:6px; }
+  .trend-legend .sw{ width:10px; height:10px; border-radius:3px; }
+  .trend-chart{ display:flex; align-items:flex-end; gap:16px; height:210px; padding:20px 4px 0; overflow-x:auto; }
+  .trend-col{ display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; min-width:46px; }
+  .trend-total{ font-family:'IBM Plex Mono', monospace; font-size:10px; font-weight:600; color:var(--ink); margin-bottom:5px; white-space:nowrap; }
+  .trend-stack{ width:32px; display:flex; flex-direction:column-reverse; border-radius:6px 6px 3px 3px; overflow:hidden; min-height:4px; }
+  .trend-seg-disc{ background:var(--c-pub); }
+  .trend-seg-invest{ background:var(--c-invest); }
+  .trend-label{ margin-top:8px; font-size:10.5px; font-weight:600; color:var(--text-dark); }
+
+  /* ---- Ledger table ---- */
+  .table-scroll{ overflow-x:auto; }
+  table.ledger{ width:100%; border-collapse:collapse; min-width:880px; }
+  table.ledger th{ text-align:left; font-size:10px; text-transform:uppercase; letter-spacing:0.4px; color:var(--text-muted); padding:8px 8px; border-bottom:2px solid var(--line); font-weight:700; }
+  table.ledger td{ padding:7px 8px; border-bottom:1px solid var(--line); vertical-align:middle; }
+  table.ledger input, table.ledger select{
+    width:100%; padding:7px 8px; border:1px solid var(--line); border-radius:8px;
+    background:var(--paper); font-family:'IBM Plex Sans', sans-serif; font-size:12px; color:var(--text-dark);
+  }
+  table.ledger input[type=number]{ font-family:'IBM Plex Mono', monospace; }
+  table.ledger input:disabled{ background:#F0EEEA; color:#C4BEC8; }
+  .row-cat-chip{ display:inline-flex; align-items:center; gap:6px; }
+  .del-btn{ background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:15px; padding:4px 6px; border-radius:6px; }
+  .del-btn:hover{ background:#F6E2E2; color:#B33; }
+  .empty-row{ text-align:center; color:var(--text-muted); padding:24px 0; font-size:12.5px; }
+
+  .footnote{
+    margin-top:6px; font-size:11.5px; color:var(--text-muted);
+    background:#F0EDE6; border-radius:14px; padding:12px 18px; line-height:1.55;
+  }
+
+  @media (max-width:900px){
+    .stats{ grid-template-columns:repeat(2,1fr); }
+    .add-grid{ grid-template-columns:1fr 1fr; }
+    .main-grid{ grid-template-columns:1fr; }
+    .cat-bar-row{ grid-template-columns:110px 1fr 65px 85px; }
+    .highlight-row{ grid-template-columns:28px 100px 1fr 70px 50px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="header">
+    <div>
+      <h1>🧾 Navya's Expense Tracker</h1>
+      <p>Trip · Clothes · Pub · Cafe · Dessert · Play &amp; Fitness · Investments — logged as they happen</p>
+    </div>
+    <div class="header-stats">
+      <div class="header-stat"><div class="hs-label">Total Logged</div><div class="hs-value" id="hsTotal">₹0</div></div>
+      <div class="header-stat"><div class="hs-label">Entries</div><div class="hs-value" id="hsCount">0</div></div>
+      <div class="header-stat"><div class="hs-label">Since</div><div class="hs-value" id="hsSince">—</div></div>
+      <div class="header-stat"><div class="hs-label">Next Year Projection</div><div class="hs-value" id="hsProjection">₹0</div></div>
+    </div>
+  </div>
+
+  <div class="panel" id="syncPanel">
+    <div class="toolbar-row">
+      <div>
+        <div class="panel-title" style="margin-bottom:2px; font-size:13.5px;">Google Sheets sync</div>
+        <p class="panel-sub" id="syncStatus" style="margin-bottom:0;">Not connected — see setup instructions in the code comments</p>
+      </div>
+      <div style="display:flex; gap:10px; align-items:center;">
+        <span class="sync-dot" id="syncDot"></span>
+        <button class="btn ghost small" id="googleConnectBtn">Connect Google Account</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel" style="padding:14px 20px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+    <div>
+      <div class="panel-title" style="margin-bottom:2px; font-size:13.5px;">Or transfer manually</div>
+      <p class="panel-sub" style="margin-bottom:0;">Fallback if you're not using Google sync — export here, import on the other device.</p>
+    </div>
+    <div style="display:flex; gap:10px;">
+      <button class="btn ghost small" id="exportBtn">⬇ Export data</button>
+      <button class="btn ghost small" id="importBtn">⬆ Import data</button>
+      <input type="file" id="importFile" accept="application/json" style="display:none;" />
+    </div>
+  </div>
+
+  <div class="section-label"><span>Log an expense</span><div class="line"></div></div>
+  <div class="panel">
+    <div class="add-grid">
+      <div class="field">
+        <label>Date</label>
+        <input type="date" id="fDate" />
+      </div>
+      <div class="field">
+        <label>Category</label>
+        <input type="text" id="fCategory" list="categoryOptions" placeholder="Pick one or type your own" />
+      </div>
+      <div class="field">
+        <label>Amount (₹)</label>
+        <input type="number" min="0" step="1" id="fAmount" placeholder="0" />
+      </div>
+      <div class="field">
+        <label>Note (optional)</label>
+        <input type="text" id="fNote" placeholder="e.g. Goa flight tickets" />
+      </div>
+      <div class="field">
+        <label>Investment type</label>
+        <input type="text" id="fInvestType" placeholder="e.g. SIP, Stocks, Gold" disabled />
+      </div>
+      <button class="btn" id="addEntryBtn">+ Add entry</button>
+    </div>
+    <div class="form-msg" id="formMsg"></div>
+    <datalist id="categoryOptions"></datalist>
+  </div>
+
+  <div class="section-label"><span>Overview</span><div class="line"></div></div>
+  <div class="stats" id="statsRow"></div>
+
+  <div class="section-label"><span>Highlights</span><div class="line"></div></div>
+  <div class="panel">
+    <div class="panel-title" id="highlightHeadline">Log an expense to see your highlights</div>
+    <p class="panel-sub">Every category, ranked by total spend — highest first</p>
+    <div id="highlightsList"></div>
+  </div>
+
+  <div class="section-label"><span>By category</span><div class="line"></div></div>
+  <div class="main-grid">
+    <div class="panel">
+      <div class="panel-title">Where it's all going</div>
+      <p class="panel-sub">All-time total per category, biggest first</p>
+      <div class="cat-bars" id="catBars"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">Category split</div>
+      <p class="panel-sub">Same totals, at a glance</p>
+      <div class="donut-wrap">
+        <div class="donut" id="donutChart">
+          <div class="donut-center">
+            <span class="dc-label">Total</span>
+            <span class="dc-value" id="donutCenterValue">₹0</span>
+          </div>
+        </div>
+      </div>
+      <div class="legend-list" id="legendList"></div>
+    </div>
+  </div>
+
+  <div class="section-label"><span>Investments</span><div class="line"></div></div>
+  <div class="panel">
+    <div class="panel-title">Investment breakdown by type</div>
+    <p class="panel-sub">Every entry logged under "Investments," grouped by what you typed into "Investment type"</p>
+    <table class="invest-table">
+      <thead><tr><th>Investment type</th><th class="amt">Total</th><th class="amt">Entries</th><th class="amt">Projected/yr</th></tr></thead>
+      <tbody id="investBody"></tbody>
+      <tfoot><tr><td>Total invested</td><td class="amt" id="investFootTotal">₹0</td><td class="amt" id="investFootCount">0</td><td></td></tr></tfoot>
+    </table>
+  </div>
+
+  <div class="section-label"><span>Trend</span><div class="line"></div></div>
+  <div class="panel">
+    <div class="panel-title">Spending over time</div>
+    <p class="panel-sub">Monthly totals, split into discretionary spend vs. investments</p>
+    <div class="trend-legend">
+      <span><span class="sw" style="background:var(--c-pub);"></span>Discretionary (Trip/Clothes/Pub/Cafe/Dessert/Play&amp;Fitness)</span>
+      <span><span class="sw" style="background:var(--c-invest);"></span>Investments</span>
+    </div>
+    <div class="trend-chart" id="trendChart"></div>
+  </div>
+
+  <div class="section-label"><span>Ledger</span><div class="line"></div></div>
+  <div class="panel">
+    <div class="panel-title">All entries</div>
+    <p class="panel-sub">Edit any field directly, or remove an entry — most recent first</p>
+    <div class="table-scroll">
+      <table class="ledger">
+        <thead>
+          <tr>
+            <th style="width:130px;">Date</th>
+            <th style="width:150px;">Category</th>
+            <th style="width:100px;">Amount (₹)</th>
+            <th>Note</th>
+            <th style="width:160px;">Investment type</th>
+            <th style="width:40px;"></th>
+          </tr>
+        </thead>
+        <tbody id="ledgerBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="footnote">
+    ✨ Every entry you log is saved permanently to this artifact's database. The 7 starter categories (Trip,
+    Clothes, Pub, Cafe, Dessert, Play &amp; Fitness, Investments) show up as suggestions, but the category field
+    accepts anything — type your own and it gets its own color, its own row in "By category," and its own slice
+    of the trend chart. Matching is case-insensitive and trims spacing, so "gym", "Gym", and " gym " all land in
+    one "Gym" category. Investments entries feed both the category total <i>and</i> their own type-by-type
+    breakdown, based on whatever you type into "Investment type" (e.g. SIP, Stocks, Gold, FD). "This Year So Far"
+    is your real, actual total for the current calendar year — it will show your true year-end number once
+    December closes. The Yearly Projection is a separate estimate based on your all-time daily average (total
+    logged ÷ days since your first entry × 365), meant to forecast ahead — it gets more accurate the longer and
+    more consistently you log.
+  </div>
+
+</div>
+
+<script>
+  const FIXED_CATEGORIES = ["Trip", "Clothes", "Pub", "Cafe", "Dessert", "Play & Fitness", "Investments"];
+  const CATEGORY_COLORS = {
+    "Trip": "var(--c-trip)",
+    "Clothes": "var(--c-clothes)",
+    "Pub": "var(--c-pub)",
+    "Cafe": "var(--c-cafe)",
+    "Dessert": "var(--c-dessert)",
+    "Play & Fitness": "var(--c-play)",
+    "Investments": "var(--c-invest)",
+  };
+  const CUSTOM_PALETTE = ["#C2703D", "#4E7FBF", "#9C6ADE", "#3D8C6C", "#C24F63", "#7A8B99", "#B08900", "#5A4632", "#2F6F76", "#8A3B5E"];
+  const STORAGE_KEY = "adhoc-expense-ledger-v1";
+
+  // ====== GOOGLE SHEETS SYNC CONFIG ======
+  // 1. console.cloud.google.com → create a project → enable the "Google Sheets API"
+  // 2. OAuth consent screen → External → add your Gmail as a test user
+  // 3. Credentials → Create OAuth Client ID → Web application
+  //    → Authorized JavaScript origins: the exact URL where you host this file
+  //    (e.g. https://yourname.github.io — no trailing slash, must be https, not file://)
+  // 4. Paste the generated Client ID below, replacing the placeholder.
+  const GOOGLE_CLIENT_ID = "PASTE_YOUR_CLIENT_ID_HERE.apps.googleusercontent.com";
+  const GOOGLE_SCOPES = "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email";
+  const SHEET_TITLE = "Navya's Expense Tracker Data";
+  const SHEET_TAB = "Entries";
+
+  let googleAccessToken = null;
+  let googleSpreadsheetId = null;
+  let googleTokenClient = null;
+  let googleSyncInFlight = false;
+  let isAutoReconnectAttempt = false;
+
+  let state = { entries: [] };
+  let saveTimer = null;
+
+  function fmt(n) {
+    return "₹" + Math.round(n).toLocaleString("en-IN");
+  }
+
+  function todayISO() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+  }
+
+  function makeId() {
+    return (crypto && crypto.randomUUID) ? crypto.randomUUID() : `id-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  }
+
+  // Normalizes any typed category so "gym", "Gym", " gym " all collapse into one "Gym" category.
+  function normalizeCategory(raw) {
+    return (raw || "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase()
+      .replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  function isInvestmentCategory(cat) {
+    return (cat || "").trim().toLowerCase() === "investments";
+  }
+
+  function hashCode(str) {
+    let h = 0;
+    for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+    return h;
+  }
+
+  // Fixed categories keep their designed colors; any custom category gets a deterministic
+  // color from CUSTOM_PALETTE, so the same typed category always renders the same color.
+  function getCategoryColor(name) {
+    if (CATEGORY_COLORS[name]) return CATEGORY_COLORS[name];
+    return CUSTOM_PALETTE[hashCode(name) % CUSTOM_PALETTE.length];
+  }
+
+  function allKnownCategories() {
+    const set = new Set(FIXED_CATEGORIES);
+    state.entries.forEach(e => { if (e.category) set.add(e.category); });
+    return Array.from(set);
+  }
+
+  function updateCategoryDatalist() {
+    const datalist = document.getElementById("categoryOptions");
+    if (!datalist) return;
+    datalist.innerHTML = allKnownCategories().map(c => `<option value="${c}"></option>`).join("");
+  }
+
+  function categoryTotals() {
+    const totals = {};
+    FIXED_CATEGORIES.forEach(c => totals[c] = 0);
+    state.entries.forEach(e => { totals[e.category] = (totals[e.category] || 0) + e.amount; });
+    return totals;
+  }
+
+  function investmentBreakdown() {
+    const groups = {};
+    state.entries.filter(e => isInvestmentCategory(e.category)).forEach(e => {
+      const key = (e.investmentType || "").trim() || "Uncategorized";
+      const normKey = key.toLowerCase();
+      if (!groups[normKey]) groups[normKey] = { label: key, total: 0, count: 0 };
+      groups[normKey].total += e.amount;
+      groups[normKey].count += 1;
+    });
+    return Object.values(groups).sort((a, b) => b.total - a.total);
+  }
+
+  function yearToDateTotal(year) {
+    const yearStr = String(year);
+    let total = 0, invest = 0;
+    state.entries.forEach(e => {
+      if (e.date && e.date.startsWith(yearStr)) {
+        total += e.amount;
+        if (isInvestmentCategory(e.category)) invest += e.amount;
+      }
+    });
+    return { total, invest, discretionary: total - invest };
+  }
+
+  function monthKey(dateStr) {
+    return dateStr ? dateStr.slice(0, 7) : "unknown";
+  }
+
+  function monthLabel(key) {
+    if (key === "unknown") return "Unknown";
+    const [y, m] = key.split("-").map(Number);
+    const d = new Date(y, m - 1, 1);
+    return d.toLocaleString("en-IN", { month: "short", year: "2-digit" });
+  }
+
+  function trendData() {
+    const months = {};
+    state.entries.forEach(e => {
+      const key = monthKey(e.date);
+      if (!months[key]) months[key] = { disc: 0, invest: 0 };
+      if (isInvestmentCategory(e.category)) months[key].invest += e.amount;
+      else months[key].disc += e.amount;
+    });
+    return Object.keys(months).sort().map(key => ({ key, label: monthLabel(key), ...months[key] }));
+  }
+
+  // Days spanned between the first and last logged entry (inclusive). Used as the basis
+  // for the yearly projection: total logged so far / days span * 365.
+  function daysSpan() {
+    const dates = state.entries.map(e => e.date).filter(Boolean).sort();
+    if (dates.length === 0) return 1;
+    const first = new Date(dates[0]);
+    const last = new Date(dates[dates.length - 1]);
+    return Math.max(1, Math.round((last - first) / 86400000) + 1);
+  }
+
+  function yearlyFactor() {
+    return 365 / daysSpan();
+  }
+
+  // Actual totals grouped by calendar year (each year here reflects real logged data).
+  function yearlyBreakdown() {
+    const byYear = {};
+    state.entries.forEach(e => {
+      if (!e.date) return;
+      const y = e.date.slice(0, 4);
+      if (!byYear[y]) byYear[y] = { total: 0, invest: 0 };
+      byYear[y].total += e.amount;
+      if (isInvestmentCategory(e.category)) byYear[y].invest += e.amount;
+    });
+    return byYear;
+  }
+
+  function dayOfYear(d) {
+    const start = new Date(d.getFullYear(), 0, 1);
+    return Math.floor((d - start) / 86400000) + 1;
+  }
+
+  // Projects next year's total by averaging each year's "effective full-year" figure:
+  // fully completed past years count as-is, and the current (in-progress) year is
+  // scaled up from its year-to-date total using how far through the year today is.
+  // Once this year is complete, it simply becomes another full year in the average —
+  // so right after the calendar turns over, this converges to "based on last year's actual."
+  function nextYearProjection() {
+    const currentYear = new Date().getFullYear();
+    const byYear = yearlyBreakdown();
+    const years = Object.keys(byYear).map(Number);
+    if (years.length === 0) return { total: 0, invest: 0, discretionary: 0, basisYears: 0, targetYear: currentYear + 1 };
+
+    const effective = years.map(y => {
+      const data = byYear[y];
+      if (y === currentYear) {
+        const factor = 365 / Math.max(1, dayOfYear(new Date()));
+        return { total: data.total * factor, invest: data.invest * factor };
+      }
+      return { total: data.total, invest: data.invest };
+    });
+
+    const avgTotal = effective.reduce((s, e) => s + e.total, 0) / effective.length;
+    const avgInvest = effective.reduce((s, e) => s + e.invest, 0) / effective.length;
+    return { total: avgTotal, invest: avgInvest, discretionary: avgTotal - avgInvest, basisYears: years.length, targetYear: currentYear + 1 };
+  }
+
+  // Every category with any spend, ranked highest-total first.
+  function categoryRanking() {
+    const totals = categoryTotals();
+    const grand = Object.values(totals).reduce((s, v) => s + v, 0) || 1;
+    return Object.keys(totals)
+      .filter(c => totals[c] > 0)
+      .sort((a, b) => totals[b] - totals[a])
+      .map((c, i) => ({ rank: i + 1, name: c, total: totals[c], pct: (totals[c] / grand) * 100 }));
+  }
+
+  function renderStats() {
+    const n = state.entries.length;
+    const total = state.entries.reduce((s, e) => s + e.amount, 0);
+    const dates = state.entries.map(e => e.date).filter(Boolean).sort();
+    const since = dates.length ? new Date(dates[0]).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }) : "—";
+    const invest = state.entries.filter(e => isInvestmentCategory(e.category)).reduce((s, e) => s + e.amount, 0);
+    const discretionary = total - invest;
+    const factor = yearlyFactor();
+    const projectedTotal = total * factor;
+    const projectedDisc = discretionary * factor;
+    const projectedInvest = invest * factor;
+    const currentYear = new Date().getFullYear();
+    const ytd = yearToDateTotal(currentYear);
+    const nextYear = nextYearProjection();
+
+    document.getElementById("hsTotal").textContent = fmt(total);
+    document.getElementById("hsCount").textContent = n;
+    document.getElementById("hsSince").textContent = since;
+    document.getElementById("hsProjection").textContent = fmt(nextYear.total);
+
+    document.getElementById("statsRow").innerHTML = `
+      <div class="stat-card">
+        <div class="stat-label">Total Logged</div>
+        <div class="stat-value">${fmt(total)}</div>
+        <div class="stat-sub">across ${n} entr${n === 1 ? "y" : "ies"}, all-time</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">${currentYear} So Far</div>
+        <div class="stat-value">${fmt(ytd.total)}</div>
+        <div class="stat-sub">actual — ${fmt(ytd.discretionary)} spend + ${fmt(ytd.invest)} invested</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Discretionary Spend</div>
+        <div class="stat-value">${fmt(discretionary)}</div>
+        <div class="stat-sub">everything except Investments, all-time</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Invested</div>
+        <div class="stat-value">${fmt(invest)}</div>
+        <div class="stat-sub">all "Investments" entries combined, all-time</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Avg per Entry</div>
+        <div class="stat-value">${fmt(n ? total / n : 0)}</div>
+        <div class="stat-sub">across everything logged</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">12-Month Run Rate</div>
+        <div class="stat-value">${fmt(projectedTotal)}</div>
+        <div class="stat-sub">estimate — ≈ ${fmt(projectedDisc)} spend + ${fmt(projectedInvest)} invested</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">${nextYear.targetYear} Projection</div>
+        <div class="stat-value">${fmt(nextYear.total)}</div>
+        <div class="stat-sub">avg of ${nextYear.basisYears} year${nextYear.basisYears === 1 ? "" : "s"} — ≈ ${fmt(nextYear.discretionary)} spend + ${fmt(nextYear.invest)} invested</div>
+      </div>
+    `;
+  }
+
+  function renderHighlights() {
+    const ranking = categoryRanking();
+    const headlineEl = document.getElementById("highlightHeadline");
+    const listEl = document.getElementById("highlightsList");
+
+    if (ranking.length === 0) {
+      headlineEl.textContent = "Log an expense to see your highlights";
+      listEl.innerHTML = "";
+      return;
+    }
+
+    const top = ranking[0];
+    headlineEl.innerHTML = `Your biggest spend is <span style="color:${getCategoryColor(top.name)};">${top.name}</span> — ${fmt(top.total)} (${top.pct.toFixed(1)}% of everything logged)`;
+
+    listEl.innerHTML = ranking.map(r => `
+      <div class="highlight-row">
+        <div class="highlight-rank ${r.rank === 1 ? "top" : ""}">${r.rank}</div>
+        <div class="highlight-name"><span class="cat-dot" style="background:${getCategoryColor(r.name)};"></span>${r.name}</div>
+        <div class="cat-bar-track"><div class="cat-bar-fill" style="width:${r.pct}%; background:${getCategoryColor(r.name)};"></div></div>
+        <div class="highlight-amt">${fmt(r.total)}</div>
+        <div class="highlight-pct">${r.pct.toFixed(1)}%</div>
+      </div>
+    `).join("");
+  }
+
+  function renderCategoryBars() {
+    const totals = categoryTotals();
+    const cats = Object.keys(totals);
+    const maxVal = Math.max(...Object.values(totals), 1);
+    const factor = yearlyFactor();
+    const sorted = cats.slice().sort((a, b) => totals[b] - totals[a]);
+    const container = document.getElementById("catBars");
+    if (sorted.length === 0) {
+      container.innerHTML = `<div class="empty-row">No expenses logged yet</div>`;
+      return;
+    }
+    container.innerHTML = sorted.map(c => `
+      <div class="cat-bar-row">
+        <div class="cat-bar-name"><span class="cat-dot" style="background:${getCategoryColor(c)};"></span>${c}</div>
+        <div class="cat-bar-track"><div class="cat-bar-fill" style="width:${(totals[c] / maxVal) * 100}%; background:${getCategoryColor(c)};"></div></div>
+        <div class="cat-bar-amt">${fmt(totals[c])}</div>
+        <div class="cat-bar-proj">${fmt(totals[c] * factor)}/yr</div>
+      </div>
+    `).join("");
+  }
+
+  function renderDonutChart() {
+    const totals = categoryTotals();
+    const cats = Object.keys(totals).filter(c => totals[c] > 0).sort((a, b) => totals[b] - totals[a]);
+    const grandTotal = cats.reduce((s, c) => s + totals[c], 0);
+    const donut = document.getElementById("donutChart");
+    const legendList = document.getElementById("legendList");
+
+    if (cats.length === 0 || grandTotal === 0) {
+      donut.style.background = "#F0EEEA";
+      document.getElementById("donutCenterValue").textContent = fmt(0);
+      legendList.innerHTML = `<div class="empty-row">No expenses logged yet</div>`;
+      return;
+    }
+
+    let cursor = 0;
+    const stops = cats.map(c => {
+      const pct = (totals[c] / grandTotal) * 100;
+      const start = cursor;
+      cursor += pct;
+      return `${getCategoryColor(c)} ${start}% ${cursor}%`;
+    }).join(", ");
+    donut.style.background = `conic-gradient(${stops})`;
+    document.getElementById("donutCenterValue").textContent = fmt(grandTotal);
+
+    legendList.innerHTML = cats.map(c => `
+      <div class="legend-item">
+        <div class="legend-left">
+          <span class="cat-dot" style="background:${getCategoryColor(c)};"></span>
+          <span>${c}</span>
+        </div>
+        <span class="legend-amt">${fmt(totals[c])}</span>
+      </div>
+    `).join("");
+  }
+
+  function renderInvestmentBreakdown() {
+    const groups = investmentBreakdown();
+    const tbody = document.getElementById("investBody");
+    const factor = yearlyFactor();
+    if (groups.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="4" class="empty-row">No investment entries logged yet</td></tr>`;
+    } else {
+      tbody.innerHTML = groups.map(g => `
+        <tr><td>${g.label}</td><td class="amt">${fmt(g.total)}</td><td class="amt">${g.count}</td><td class="amt">${fmt(g.total * factor)}</td></tr>
+      `).join("");
+    }
+    const total = groups.reduce((s, g) => s + g.total, 0);
+    const count = groups.reduce((s, g) => s + g.count, 0);
+    document.getElementById("investFootTotal").textContent = fmt(total);
+    document.getElementById("investFootCount").textContent = count;
+  }
+
+  function renderTrend() {
+    const data = trendData();
+    const container = document.getElementById("trendChart");
+    if (data.length === 0) {
+      container.innerHTML = `<div class="empty-row" style="width:100%;">Log an entry to see your trend</div>`;
+      return;
+    }
+    const maxVal = Math.max(...data.map(d => d.disc + d.invest), 1);
+    container.innerHTML = data.map(d => {
+      const total = d.disc + d.invest;
+      const totalPct = Math.max((total / maxVal) * 100, 3);
+      const investPct = total > 0 ? (d.invest / total) * 100 : 0;
+      const discPct = 100 - investPct;
+      return `
+        <div class="trend-col">
+          <div class="trend-total">${fmt(total)}</div>
+          <div class="trend-stack" style="height:${totalPct}%;" title="${d.label}: ${fmt(total)}">
+            <div class="trend-seg-disc" style="height:${discPct}%;"></div>
+            <div class="trend-seg-invest" style="height:${investPct}%;"></div>
+          </div>
+          <div class="trend-label">${d.label}</div>
+        </div>
+      `;
+    }).join("");
+  }
+
+  function renderLedger() {
+    const tbody = document.getElementById("ledgerBody");
+    const sorted = state.entries.slice().sort((a, b) => (b.date || "").localeCompare(a.date || "") || b.createdAt - a.createdAt);
+    if (sorted.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="6" class="empty-row">No expenses logged yet — add your first one above</td></tr>`;
+      return;
+    }
+    tbody.innerHTML = "";
+    sorted.forEach(entry => {
+      const tr = document.createElement("tr");
+      tr.dataset.id = entry.id;
+      const isInvest = isInvestmentCategory(entry.category);
+      tr.innerHTML = `
+        <td><input type="date" class="edit-date" value="${entry.date || ""}" /></td>
+        <td><input type="text" class="edit-category" list="categoryOptions" value="${(entry.category || "").replace(/"/g, "&quot;")}" /></td>
+        <td><input type="number" min="0" step="1" class="edit-amount" value="${entry.amount}" /></td>
+        <td><input type="text" class="edit-note" value="${(entry.note || "").replace(/"/g, "&quot;")}" placeholder="—" /></td>
+        <td><input type="text" class="edit-invest" value="${(entry.investmentType || "").replace(/"/g, "&quot;")}" placeholder="—" ${isInvest ? "" : "disabled"} /></td>
+        <td><button class="del-btn" title="Delete entry">✕</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+    attachLedgerListeners();
+  }
+
+  function attachLedgerListeners() {
+    document.querySelectorAll("#ledgerBody tr").forEach(tr => {
+      const id = tr.dataset.id;
+      const entry = state.entries.find(e => e.id === id);
+      if (!entry) return;
+
+      tr.querySelector(".edit-date").addEventListener("change", e => {
+        entry.date = e.target.value;
+        saveState();
+        renderAll();
+      });
+      tr.querySelector(".edit-category").addEventListener("change", e => {
+        entry.category = normalizeCategory(e.target.value) || entry.category;
+        if (!isInvestmentCategory(entry.category)) entry.investmentType = "";
+        saveState();
+        renderAll();
+      });
+      tr.querySelector(".edit-amount").addEventListener("input", e => {
+        entry.amount = Math.max(0, parseFloat(e.target.value) || 0);
+        saveState();
+        renderStats(); renderCategoryBars(); renderInvestmentBreakdown(); renderTrend();
+      });
+      tr.querySelector(".edit-note").addEventListener("input", e => {
+        entry.note = e.target.value;
+        saveState();
+      });
+      const investInput = tr.querySelector(".edit-invest");
+      investInput.addEventListener("input", e => {
+        entry.investmentType = e.target.value;
+        saveState();
+        renderInvestmentBreakdown();
+      });
+      tr.querySelector(".del-btn").addEventListener("click", () => {
+        state.entries = state.entries.filter(e => e.id !== id);
+        saveState();
+        renderAll();
+      });
+    });
+  }
+
+  function renderAll() {
+    renderStats();
+    renderHighlights();
+    renderCategoryBars();
+    renderDonutChart();
+    renderInvestmentBreakdown();
+    renderTrend();
+    renderLedger();
+    updateCategoryDatalist();
+  }
+
+  function bindAddForm() {
+    document.getElementById("fDate").value = todayISO();
+    document.getElementById("fCategory").value = "Trip";
+    updateCategoryDatalist();
+
+    document.getElementById("fCategory").addEventListener("input", e => {
+      const investField = document.getElementById("fInvestType");
+      const isInvest = isInvestmentCategory(e.target.value);
+      investField.disabled = !isInvest;
+      if (!isInvest) investField.value = "";
+    });
+
+    document.getElementById("addEntryBtn").addEventListener("click", () => {
+      const date = document.getElementById("fDate").value || todayISO();
+      const categoryRaw = document.getElementById("fCategory").value;
+      const category = normalizeCategory(categoryRaw);
+      const amountRaw = document.getElementById("fAmount").value;
+      const amount = parseFloat(amountRaw);
+      const note = document.getElementById("fNote").value.trim();
+      const investmentType = document.getElementById("fInvestType").value.trim();
+      const msgEl = document.getElementById("formMsg");
+
+      if (!category) {
+        msgEl.textContent = "Enter or pick a category before adding.";
+        return;
+      }
+      if (!amount || amount <= 0) {
+        msgEl.textContent = "Enter an amount greater than 0 before adding.";
+        return;
+      }
+      msgEl.textContent = "";
+
+      state.entries.push({
+        id: makeId(),
+        date, category, amount, note,
+        investmentType: isInvestmentCategory(category) ? investmentType : "",
+        createdAt: Date.now(),
+      });
+      saveState();
+      renderAll();
+
+      document.getElementById("fAmount").value = "";
+      document.getElementById("fNote").value = "";
+      document.getElementById("fInvestType").value = "";
+    });
+  }
+
+  // ---------- Google Sheets sync ----------
+
+  function setSyncStatus(text, dotClass) {
+    const statusEl = document.getElementById("syncStatus");
+    const dotEl = document.getElementById("syncDot");
+    if (statusEl) statusEl.textContent = text;
+    if (dotEl) dotEl.className = "sync-dot" + (dotClass ? " " + dotClass : "");
+  }
+
+  function googleConfigured() {
+    return GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.startsWith("PASTE_YOUR_CLIENT_ID");
+  }
+
+  function initGoogleAuth() {
+    if (!googleConfigured() || typeof google === "undefined" || !google.accounts) return;
+    googleTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: GOOGLE_CLIENT_ID,
+      scope: GOOGLE_SCOPES,
+      callback: async (tokenResponse) => {
+        if (tokenResponse.error) {
+          if (isAutoReconnectAttempt) {
+            setSyncStatus("Not connected — click to connect", "");
+          } else {
+            setSyncStatus("Google sign-in failed — try again", "error");
+          }
+          isAutoReconnectAttempt = false;
+          return;
+        }
+        isAutoReconnectAttempt = false;
+        googleAccessToken = tokenResponse.access_token;
+        await onGoogleConnected();
+      },
+    });
+    document.getElementById("googleConnectBtn").disabled = false;
+    attemptAutoReconnect();
+  }
+
+  // Best-effort silent reconnect using the browser's existing Google session, so returning
+  // users don't have to click Connect every time. Not guaranteed — depends on the browser
+  // still having an active Google sign-in and allowing the silent auth check. Falls back
+  // to a normal "Not connected" state (with the button still there) if it doesn't succeed.
+  function attemptAutoReconnect() {
+    isAutoReconnectAttempt = true;
+    setSyncStatus("Checking for an existing Google session…", "");
+    googleTokenClient.requestAccessToken({ prompt: "" });
+    setTimeout(() => {
+      if (isAutoReconnectAttempt) {
+        isAutoReconnectAttempt = false;
+        setSyncStatus("Not connected — click to connect", "");
+      }
+    }, 4000);
+  }
+
+  async function onGoogleConnected() {
+    setSyncStatus("Connecting…", "");
+    try {
+      const email = await fetchGoogleEmail();
+      googleSpreadsheetId = await findOrCreateSpreadsheet();
+      await syncFromSheetThenMerge();
+      setSyncStatus(`Connected as ${email} — synced to Google Sheets`, "connected");
+      document.getElementById("googleConnectBtn").textContent = "Re-sync now";
+    } catch (err) {
+      setSyncStatus("Connected, but sync failed: " + (err.message || err), "error");
+    }
+  }
+
+  async function fetchGoogleEmail() {
+    const res = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+      headers: { Authorization: `Bearer ${googleAccessToken}` },
+    });
+    if (!res.ok) throw new Error("couldn't verify account");
+    const data = await res.json();
+    return data.email || "your Google account";
+  }
+
+  async function findOrCreateSpreadsheet() {
+    const q = encodeURIComponent(`name='${SHEET_TITLE.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
+    const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, {
+      headers: { Authorization: `Bearer ${googleAccessToken}` },
+    });
+    const searchData = await searchRes.json();
+    if (searchData.files && searchData.files.length > 0) {
+      return searchData.files[0].id;
+    }
+
+    const createRes = await fetch("https://sheets.googleapis.com/v4/spreadsheets", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${googleAccessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        properties: { title: SHEET_TITLE },
+        sheets: [{ properties: { title: SHEET_TAB } }],
+      }),
+    });
+    const created = await createRes.json();
+    if (!created.spreadsheetId) throw new Error("couldn't create spreadsheet");
+
+    await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${created.spreadsheetId}/values/${SHEET_TAB}!A1:G1?valueInputOption=RAW`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${googleAccessToken}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ values: [["id", "date", "category", "amount", "note", "investmentType", "createdAt"]] }),
+    });
+    return created.spreadsheetId;
+  }
+
+  async function loadEntriesFromSheet() {
+    const res = await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${googleSpreadsheetId}/values/${SHEET_TAB}!A2:G`, {
+      headers: { Authorization: `Bearer ${googleAccessToken}` },
+    });
+    const data = await res.json();
+    const rows = data.values || [];
+    return rows
+      .filter(r => r[0])
+      .map(r => ({
+        id: r[0],
+        date: r[1] || "",
+        category: r[2] || "",
+        amount: parseFloat(r[3]) || 0,
+        note: r[4] || "",
+        investmentType: r[5] || "",
+        createdAt: parseInt(r[6], 10) || Date.now(),
+      }));
+  }
+
+  // Merges the sheet's entries with whatever's already local (union by id), so the very
+  // first connection on a second device pulls in everything without wiping local data.
+  async function syncFromSheetThenMerge() {
+    const sheetEntries = await loadEntriesFromSheet();
+    const byId = {};
+    state.entries.forEach(e => { byId[e.id] = e; });
+    sheetEntries.forEach(e => { byId[e.id] = e; });
+    state.entries = Object.values(byId);
+    saveState();
+    renderAll();
+  }
+
+  async function saveEntriesToSheet() {
+    if (!googleAccessToken || !googleSpreadsheetId || googleSyncInFlight) return;
+    googleSyncInFlight = true;
+    try {
+      const values = state.entries.map(e => [e.id, e.date, e.category, e.amount, e.note || "", e.investmentType || "", e.createdAt]);
+      await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${googleSpreadsheetId}/values/${SHEET_TAB}!A2:G10000:clear`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${googleAccessToken}` },
+      });
+      if (values.length > 0) {
+        await fetch(`https://sheets.googleapis.com/v4/spreadsheets/${googleSpreadsheetId}/values/${SHEET_TAB}!A2:G${values.length + 1}?valueInputOption=RAW`, {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${googleAccessToken}`, "Content-Type": "application/json" },
+          body: JSON.stringify({ values }),
+        });
+      }
+      setSyncStatus(`Synced to Google Sheets · ${new Date().toLocaleTimeString("en-IN")}`, "connected");
+    } catch (err) {
+      setSyncStatus("Sync to Google Sheets failed — will retry on next edit", "error");
+    } finally {
+      googleSyncInFlight = false;
+    }
+  }
+
+  function bindGoogleSync() {
+    const btn = document.getElementById("googleConnectBtn");
+    if (!googleConfigured()) {
+      setSyncStatus("Not set up yet — add your Google Client ID in the code (see comments) to enable this", "");
+      btn.disabled = true;
+      return;
+    }
+    setSyncStatus("Loading Google sign-in…", "");
+    btn.disabled = true;
+
+    let attempts = 0;
+    const waitForGis = setInterval(() => {
+      attempts++;
+      if (typeof google !== "undefined" && google.accounts) {
+        clearInterval(waitForGis);
+        initGoogleAuth();
+      } else if (attempts > 25) {
+        clearInterval(waitForGis);
+        setSyncStatus("Couldn't load Google sign-in — check your connection and reload", "error");
+      }
+    }, 200);
+
+    btn.addEventListener("click", () => {
+      isAutoReconnectAttempt = false;
+      if (googleTokenClient) googleTokenClient.requestAccessToken();
+    });
+  }
+
+  function saveState() {
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(async () => {
+      // Prefer window.storage (works when viewed inside Claude's artifact panel).
+      // Fall back to the browser's own localStorage (works when this file is opened
+      // directly, e.g. after downloading it) so entries survive closing the tab either way.
+      let savedViaWindowStorage = false;
+      try {
+        if (window.storage && window.storage.set) {
+          await window.storage.set(STORAGE_KEY, JSON.stringify(state), false);
+          savedViaWindowStorage = true;
+        }
+      } catch (err) {
+        // window.storage unavailable or failed; fall through to localStorage
+      }
+      if (!savedViaWindowStorage) {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        } catch (err) {
+          // both storage options unavailable; state still lives in memory for this session
+        }
+      }
+      if (googleAccessToken && googleSpreadsheetId) {
+        saveEntriesToSheet();
+      }
+    }, 250);
+  }
+
+  function exportData() {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `expense-tracker-export-${todayISO()}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function importDataFromFile(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const parsed = JSON.parse(reader.result);
+        if (!parsed || !Array.isArray(parsed.entries)) {
+          alert("This file doesn't look like an exported Expense Tracker file.");
+          return;
+        }
+        const existingIds = new Set(state.entries.map(e => e.id));
+        const incoming = parsed.entries.filter(e => e && e.id && !existingIds.has(e.id));
+        const skipped = parsed.entries.length - incoming.length;
+        state.entries = state.entries.concat(incoming);
+        saveState();
+        renderAll();
+        alert(`Imported ${incoming.length} new entr${incoming.length === 1 ? "y" : "ies"}.` + (skipped > 0 ? ` Skipped ${skipped} already present.` : ""));
+      } catch (err) {
+        alert("Couldn't read that file — make sure it's a JSON file exported from this tracker.");
+      }
+    };
+    reader.readAsText(file);
+  }
+
+  function bindDataTransfer() {
+    document.getElementById("exportBtn").addEventListener("click", exportData);
+    document.getElementById("importBtn").addEventListener("click", () => {
+      document.getElementById("importFile").click();
+    });
+    document.getElementById("importFile").addEventListener("change", e => {
+      const file = e.target.files[0];
+      if (file) importDataFromFile(file);
+      e.target.value = "";
+    });
+  }
+
+  async function loadState() {
+    let loaded = false;
+    try {
+      if (window.storage && window.storage.get) {
+        const result = await window.storage.get(STORAGE_KEY, false);
+        if (result && result.value) {
+          const parsed = JSON.parse(result.value);
+          if (parsed && Array.isArray(parsed.entries)) { state = parsed; loaded = true; }
+        }
+      }
+    } catch (err) {
+      // no saved state in window.storage yet — try localStorage next
+    }
+    if (!loaded) {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (parsed && Array.isArray(parsed.entries)) state = parsed;
+        }
+      } catch (err) {
+        // no saved state anywhere — start empty
+      }
+    }
+    bindAddForm();
+    bindDataTransfer();
+    bindGoogleSync();
+    renderAll();
+  }
+
+  loadState();
+</script>
+</body>
+</html>
