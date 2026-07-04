@@ -110,6 +110,7 @@
   }
   .btn:hover{ background:var(--ink-soft); }
   .btn.ghost{ background:transparent; color:var(--ink); border:1px solid var(--line); }
+  .btn:disabled{ opacity:0.5; cursor:default; }
   .btn.ghost:hover{ background:var(--paper); }
   .btn.small{ padding:6px 10px; font-size:11px; }
   .form-msg{ font-size:11.5px; color:#B33; margin-top:8px; min-height:14px; }
@@ -247,6 +248,7 @@
       <div style="display:flex; gap:10px; align-items:center;">
         <span class="sync-dot" id="syncDot"></span>
         <button class="btn ghost small" id="googleConnectBtn">Connect Google Account</button>
+        <button class="btn ghost small" id="googleSwitchAccountBtn" title="Sign in with a different Google account">Switch account</button>
       </div>
     </div>
   </div>
@@ -413,12 +415,13 @@
   const GOOGLE_SPREADSHEET_ID = "1gOFtRse_30Q6pRXYcO6qjBpjaBFKCg2n1v8tCBUZZ2c";
 
   let googleAccessToken = null;
+  let googleConnectedEmail = null;
   let googleSpreadsheetId = null;
   let googleTokenClient = null;
   let googleSyncInFlight = false;
   let isAutoReconnectAttempt = false;
 
-  let state = { entries: [] };
+  let state = { entries: [], googleFirstSyncDone: false };
   let saveTimer = null;
 
   function fmt(n) {
@@ -932,6 +935,7 @@
       },
     });
     document.getElementById("googleConnectBtn").disabled = false;
+    document.getElementById("googleSwitchAccountBtn").disabled = false;
     attemptAutoReconnect();
     scheduleSilentTokenRefresh();
   }
@@ -968,6 +972,7 @@
     setSyncStatus("Connecting…", "");
     try {
       const email = await fetchGoogleEmail();
+      googleConnectedEmail = email;
       googleSpreadsheetId = await findOrCreateSpreadsheet();
       await syncFromSheetThenMerge();
       setSyncStatus(`Connected as ${email} — synced to Google Sheets`, "connected");
@@ -1037,16 +1042,28 @@
       }));
   }
 
-  // Merges the sheet's entries with whatever's already local (union by id), so the very
-  // first connection on a second device pulls in everything without wiping local data.
+  // On the very first connection ever from this device, merge (union by id) so any
+  // entries logged locally before connecting aren't lost — then immediately push that
+  // merged set up. On every reconnect after that, the sheet is treated as the single
+  // source of truth and fully replaces local data, so deletions made elsewhere
+  // correctly propagate here instead of a stale local copy lingering forever.
   async function syncFromSheetThenMerge() {
     const sheetEntries = await loadEntriesFromSheet();
-    const byId = {};
-    state.entries.forEach(e => { byId[e.id] = e; });
-    sheetEntries.forEach(e => { byId[e.id] = e; });
-    state.entries = Object.values(byId);
-    saveState();
-    renderAll();
+
+    if (!state.googleFirstSyncDone) {
+      const byId = {};
+      state.entries.forEach(e => { byId[e.id] = e; });
+      sheetEntries.forEach(e => { byId[e.id] = e; });
+      state.entries = Object.values(byId);
+      state.googleFirstSyncDone = true;
+      saveState();
+      renderAll();
+      await saveEntriesToSheet(); // push the merged set up immediately
+    } else {
+      state.entries = sheetEntries;
+      saveState();
+      renderAll();
+    }
   }
 
   async function saveEntriesToSheet() {
@@ -1082,6 +1099,7 @@
     }
     setSyncStatus("Loading Google sign-in…", "");
     btn.disabled = true;
+    document.getElementById("googleSwitchAccountBtn").disabled = true;
 
     let attempts = 0;
     const waitForGis = setInterval(() => {
@@ -1096,9 +1114,43 @@
     }, 200);
 
     btn.addEventListener("click", () => {
-      isAutoReconnectAttempt = false;
-      if (googleTokenClient) googleTokenClient.requestAccessToken();
+      requestResync();
     });
+
+    document.getElementById("googleSwitchAccountBtn").addEventListener("click", () => {
+      requestAccountSwitch();
+    });
+  }
+
+  // Used by the main button: if we're already connected, silently re-request a token
+  // for the same account (no picker, no popup). If that silent attempt doesn't come
+  // back, fall back to an interactive request — still pre-filled with the same account
+  // via the login hint, so at most you confirm rather than pick from scratch. If we've
+  // never connected before, this is just the normal first-time connect flow.
+  function requestResync() {
+    if (!googleTokenClient) return;
+    if (googleAccessToken && googleConnectedEmail) {
+      isAutoReconnectAttempt = true;
+      setSyncStatus("Re-syncing…", "connected");
+      googleTokenClient.requestAccessToken({ prompt: "none", hint: googleConnectedEmail });
+      setTimeout(() => {
+        if (isAutoReconnectAttempt) {
+          isAutoReconnectAttempt = false;
+          googleTokenClient.requestAccessToken({ hint: googleConnectedEmail });
+        }
+      }, 4000);
+    } else {
+      isAutoReconnectAttempt = false;
+      googleTokenClient.requestAccessToken();
+    }
+  }
+
+  // Always shows the account picker, regardless of what's currently connected — the
+  // explicit way to switch to a different Google account.
+  function requestAccountSwitch() {
+    if (!googleTokenClient) return;
+    isAutoReconnectAttempt = false;
+    googleTokenClient.requestAccessToken({ prompt: "select_account" });
   }
 
   function saveState() {
