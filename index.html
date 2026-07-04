@@ -933,22 +933,35 @@
     });
     document.getElementById("googleConnectBtn").disabled = false;
     attemptAutoReconnect();
+    scheduleSilentTokenRefresh();
   }
 
   // Best-effort silent reconnect using the browser's existing Google session, so returning
-  // users don't have to click Connect every time. Not guaranteed — depends on the browser
-  // still having an active Google sign-in and allowing the silent auth check. Falls back
-  // to a normal "Not connected" state (with the button still there) if it doesn't succeed.
+  // users don't have to click Connect every time. prompt:"none" means Google will never
+  // show any visible UI for this attempt — it either succeeds quietly in the background,
+  // or fails quietly and we fall back to the manual Connect button. Not guaranteed to
+  // succeed — depends on the browser still holding an active Google sign-in.
   function attemptAutoReconnect() {
     isAutoReconnectAttempt = true;
     setSyncStatus("Checking for an existing Google session…", "");
-    googleTokenClient.requestAccessToken({ prompt: "" });
+    googleTokenClient.requestAccessToken({ prompt: "none" });
     setTimeout(() => {
       if (isAutoReconnectAttempt) {
         isAutoReconnectAttempt = false;
         setSyncStatus("Not connected — click to connect", "");
       }
     }, 4000);
+  }
+
+  // Google access tokens expire after ~1 hour. Proactively refresh silently every 45
+  // minutes while the tab stays open, so an active session never gets interrupted by
+  // a popup — it just quietly renews itself in the background.
+  function scheduleSilentTokenRefresh() {
+    setInterval(() => {
+      if (googleAccessToken && googleTokenClient) {
+        attemptAutoReconnect();
+      }
+    }, 45 * 60 * 1000);
   }
 
   async function onGoogleConnected() {
