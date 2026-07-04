@@ -407,6 +407,10 @@
   const GOOGLE_SCOPES = "https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email";
   const SHEET_TITLE = "Navya's Expense Tracker Data";
   const SHEET_TAB = "Entries";
+  // Pinned to one specific spreadsheet so every device uses the exact same sheet —
+  // avoids relying on Drive search (which can be unreliable with drive.file scope
+  // for files created via the Sheets API) and prevents duplicate sheets being created.
+  const GOOGLE_SPREADSHEET_ID = "1gOFtRse_30Q6pRXYcO6qjBpjaBFKCg2n1v8tCBUZZ2c";
 
   let googleAccessToken = null;
   let googleSpreadsheetId = null;
@@ -970,6 +974,9 @@
   }
 
   async function findOrCreateSpreadsheet() {
+    // Pinned ID takes priority — every device uses this exact sheet, no ambiguity.
+    if (GOOGLE_SPREADSHEET_ID) return GOOGLE_SPREADSHEET_ID;
+
     const q = encodeURIComponent(`name='${SHEET_TITLE.replace(/'/g, "\\'")}' and mimeType='application/vnd.google-apps.spreadsheet' and trashed=false`);
     const searchRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${q}&fields=files(id,name)`, {
       headers: { Authorization: `Bearer ${googleAccessToken}` },
